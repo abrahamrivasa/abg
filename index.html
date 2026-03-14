@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="es-MX">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Calculadora ISR Anual México</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f5f7fb;
+        --card: #ffffff;
+        --primary: #0056d6;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --ok: #0f766e;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background: linear-gradient(180deg, #eef2ff 0%, var(--bg) 40%);
+        color: var(--text);
+        min-height: 100vh;
+      }
+
+      .container {
+        max-width: 860px;
+        margin: 40px auto;
+        padding: 24px;
+      }
+
+      .card {
+        background: var(--card);
+        border-radius: 16px;
+        box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
+        padding: 24px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 1.9rem;
+      }
+
+      p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-top: 24px;
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .field label {
+        font-weight: 600;
+      }
+
+      .field input {
+        border: 1px solid #d1d5db;
+        border-radius: 10px;
+        padding: 12px;
+        font-size: 1rem;
+      }
+
+      .field input:focus {
+        outline: 2px solid #bfdbfe;
+        border-color: #60a5fa;
+      }
+
+      .actions {
+        margin-top: 20px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 10px;
+        padding: 12px 18px;
+        background: var(--primary);
+        color: #fff;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      button:hover {
+        filter: brightness(0.96);
+      }
+
+      .result {
+        margin-top: 24px;
+        border: 1px solid #dbeafe;
+        border-radius: 12px;
+        background: #f8fbff;
+        padding: 16px;
+        display: none;
+      }
+
+      .result h2 {
+        margin: 0 0 10px;
+        font-size: 1.2rem;
+      }
+
+      .result ul {
+        margin: 0;
+        padding-left: 20px;
+      }
+
+      .result li + li {
+        margin-top: 6px;
+      }
+
+      .net {
+        font-weight: 700;
+        color: var(--ok);
+      }
+
+      .note {
+        margin-top: 20px;
+        font-size: 0.9rem;
+      }
+
+      @media (max-width: 720px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <section class="card">
+        <h1>Calculadora anual de ISR (México)</h1>
+        <p>Pensada para asalariados, con estimación usando tarifas anuales del ISR.</p>
+
+        <div class="grid">
+          <div class="field">
+            <label for="ingresos">Ingresos anuales brutos (MXN)</label>
+            <input id="ingresos" type="number" min="0" step="0.01" placeholder="Ej. 420000" />
+          </div>
+
+          <div class="field">
+            <label for="deducciones">Deducciones personales anuales (MXN)</label>
+            <input id="deducciones" type="number" min="0" step="0.01" placeholder="Ej. 30000" />
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="calcularBtn" type="button">Calcular ISR anual</button>
+        </div>
+
+        <section id="resultado" class="result" aria-live="polite">
+          <h2>Resultado estimado</h2>
+          <ul>
+            <li><strong>Base gravable:</strong> <span id="baseGravable"></span></li>
+            <li><strong>ISR anual estimado:</strong> <span id="isrAnual"></span></li>
+            <li><strong>Ingreso neto estimado:</strong> <span id="ingresoNeto" class="net"></span></li>
+          </ul>
+        </section>
+
+        <p class="note">
+          Nota: Este cálculo es una referencia y no sustituye asesoría fiscal profesional. Considera subsidios,
+          retenciones y reglas vigentes aplicables a tu situación.
+        </p>
+      </section>
+    </main>
+
+    <script>
+      const annualBrackets = [
+        { lower: 0.01, upper: 8952.49, fixedFee: 0, rate: 1.92 },
+        { lower: 8952.5, upper: 75984.55, fixedFee: 171.88, rate: 6.4 },
+        { lower: 75984.56, upper: 133536.07, fixedFee: 4461.94, rate: 10.88 },
+        { lower: 133536.08, upper: 155229.8, fixedFee: 10723.55, rate: 16 },
+        { lower: 155229.81, upper: 185852.57, fixedFee: 14194.54, rate: 17.92 },
+        { lower: 185852.58, upper: 374837.88, fixedFee: 19682.13, rate: 21.36 },
+        { lower: 374837.89, upper: 590795.99, fixedFee: 60049.4, rate: 23.52 },
+        { lower: 590796.0, upper: 1127926.84, fixedFee: 110842.74, rate: 30 },
+        { lower: 1127926.85, upper: 1503902.46, fixedFee: 272411.52, rate: 32 },
+        { lower: 1503902.47, upper: 4511707.37, fixedFee: 392841.97, rate: 34 },
+        { lower: 4511707.38, upper: Number.POSITIVE_INFINITY, fixedFee: 1414947.85, rate: 35 }
+      ];
+
+      const money = new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN',
+        maximumFractionDigits: 2
+      });
+
+      function calculateISR(baseGravable) {
+        const taxable = Math.max(baseGravable, 0);
+
+        if (taxable === 0) return 0;
+
+        const bracket = annualBrackets.find((b) => taxable >= b.lower && taxable <= b.upper);
+        if (!bracket) return 0;
+
+        const excedente = taxable - bracket.lower;
+        const marginalTax = excedente * (bracket.rate / 100);
+        return bracket.fixedFee + marginalTax;
+      }
+
+      function readValue(id) {
+        const value = Number(document.getElementById(id).value);
+        return Number.isFinite(value) && value > 0 ? value : 0;
+      }
+
+      const calcularBtn = document.getElementById('calcularBtn');
+      calcularBtn.addEventListener('click', () => {
+        const ingresos = readValue('ingresos');
+        const deducciones = readValue('deducciones');
+
+        const baseGravable = Math.max(ingresos - deducciones, 0);
+        const isrAnual = calculateISR(baseGravable);
+        const ingresoNeto = ingresos - isrAnual;
+
+        document.getElementById('baseGravable').textContent = money.format(baseGravable);
+        document.getElementById('isrAnual').textContent = money.format(isrAnual);
+        document.getElementById('ingresoNeto').textContent = money.format(ingresoNeto);
+        document.getElementById('resultado').style.display = 'block';
+      });
+    </script>
+  </body>
+</html>
